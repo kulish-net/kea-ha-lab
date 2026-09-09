@@ -1,0 +1,55 @@
+# ISC Kea DHCPv4 — hot-standby HA pair with a PostgreSQL lease backend.
+# NOTE: verify the image tag against the current ISC registry before first run.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: kea
+      POSTGRES_USER: kea
+      POSTGRES_PASSWORD: kea
+    volumes:
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kea -d kea"]
+      interval: 5s
+      retries: 10
+    networks:
+      lab: { ipv4_address: 172.28.0.10 }
+
+  kea-primary:
+    image: docker.cloudsmith.io/isc/docker/kea-dhcp4:2.6
+    depends_on:
+      db: { condition: service_healthy }
+    volumes:
+      - ./kea/kea-dhcp4-primary.conf:/etc/kea/kea-dhcp4.conf:ro
+    cap_add: [NET_ADMIN, NET_RAW]
+    networks:
+      lab: { ipv4_address: 172.28.0.2 }
+
+  kea-secondary:
+    image: docker.cloudsmith.io/isc/docker/kea-dhcp4:2.6
+    depends_on:
+      db: { condition: service_healthy }
+    volumes:
+      - ./kea/kea-dhcp4-secondary.conf:/etc/kea/kea-dhcp4.conf:ro
+    cap_add: [NET_ADMIN, NET_RAW]
+    networks:
+      lab: { ipv4_address: 172.28.0.3 }
+
+  client:
+    image: debian:12-slim
+    command: sleep infinity
+    cap_add: [NET_ADMIN, NET_RAW]
+    networks:
+      lab: { ipv4_address: 172.28.0.50 }
+
+volumes:
+  pgdata:
+
+networks:
+  lab:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24

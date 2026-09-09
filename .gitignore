@@ -1,0 +1,15 @@
+# local runtime state
+db/data/
+*.log
+*.leases
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# never commit real credentials
+.env
+*.secret
